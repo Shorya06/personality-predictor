@@ -1,0 +1,82 @@
+import streamlit as st
+import numpy as np
+import pandas as pd
+import requests
+import json
+
+# --- Function Definitions (move these up!) ---
+def analyze_single_text(text_input):
+    # ... function code ...
+
+def analyze_multiple_texts(df):
+    """Analyze multiple texts and display aggregate results."""
+    import streamlit as st
+    import pandas as pd
+    from utils import create_trait_radar_chart, create_trait_distribution_plot, create_correlation_heatmap
+
+    with st.spinner("Analyzing texts..."):
+        try:
+            all_predictions = []
+            for text in df['text_content']:
+                if pd.isna(text):
+                    continue
+                predictions = st.session_state.predictor.predict(str(text))
+                all_predictions.append(predictions)
+            predictions_df = pd.DataFrame(all_predictions)
+            st.subheader("Aggregate Personality Traits")
+            col1, col2 = st.columns(2)
+            with col1:
+                avg_predictions = predictions_df.mean().to_dict()
+                radar_fig = create_trait_radar_chart(list(avg_predictions.values()))
+                st.plotly_chart(radar_fig, use_container_width=True)
+            with col2:
+                st.plotly_chart(
+                    create_trait_distribution_plot(predictions_df),
+                    use_container_width=True
+                )
+            st.subheader("Detailed Statistics")
+            st.dataframe(
+                predictions_df.describe(),
+                use_container_width=True
+            )
+            st.subheader("Trait Correlations")
+            correlation_fig = create_correlation_heatmap(predictions_df)
+            st.plotly_chart(correlation_fig, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error analyzing texts: {str(e)}")
+
+# --- Streamlit UI and Tabs ---
+tabs = st.tabs(["Tab1", "View Trait Scores", "Upload Text File"])
+
+with tabs[0]:
+    # ... code ...
+
+with tabs[1]:
+    st.header("View Trait Scores")
+    uploaded_file = st.file_uploader("Upload CSV file with texts", type=['csv'], key="trait_scores_uploader")
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
+        analyze_multiple_texts(df)
+
+with tabs[2]:
+    st.header("Upload Text File")
+    txt_file = st.file_uploader("Upload a plain text file", type=["txt"], key="simple_txt_uploader")
+    if txt_file is not None:
+        text = txt_file.read().decode("utf-8")
+        st.text_area("File Content", text, height=300)
+
+def load_lottieurl(url: str):
+    try:
+        r = requests.get(url, timeout=5)
+        if r.status_code != 200:
+            return None
+        return r.json()
+    except Exception as e:
+        return None 
+
+import json
+with open("local_animation.json", "r") as f:
+    lottie_json = json.load(f)
+st_lottie(lottie_json, height=180, key="brain") 
+
+# ... rest of the original file ... 

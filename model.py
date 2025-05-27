@@ -3,7 +3,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 import joblib
 import os
-from data_processing import process_text, create_synthetic_dataset, process_texts_batch
+from data_processing import process_text, create_synthetic_dataset, process_texts_batch, get_feature_names
 
 class PersonalityPredictor:
     def __init__(self):
@@ -35,7 +35,7 @@ class PersonalityPredictor:
             )
         }
         self.is_trained = False
-        self.feature_names = None
+        self.feature_names = get_feature_names()
 
     def train(self, X=None, y=None, use_synthetic=True):
         if use_synthetic or (X is None and y is None):
@@ -54,13 +54,21 @@ class PersonalityPredictor:
         
         print("\nTraining models...")
         for idx, trait in enumerate(self.models.keys()):
-            print(f"Training model for {trait}...")
+            print(f"\nTraining model for {trait}...")
             self.models[trait].fit(X_train, y_train[:, idx])
             
             importances = self.models[trait].feature_importances_
             print(f"\nTop 5 important features for {trait}:")
-            for i in range(min(5, len(importances))):
-                print(f"Feature {i}: {importances[i]:.4f}")
+            # Get indices of top 5 features
+            top_indices = np.argsort(importances)[-5:][::-1]
+            for i in top_indices:
+                feature_name = self.feature_names[i]
+                # Format the feature name for better readability
+                if feature_name.startswith('word_pattern_'):
+                    feature_name = f"Word Pattern {feature_name.split('_')[-1]}"
+                elif feature_name.startswith('tfidf_'):
+                    feature_name = f"Word Pattern {feature_name.split('_')[-1]}"
+                print(f"{feature_name}: {importances[i]:.4f}")
         
         self.is_trained = True
         return X_test, y_test

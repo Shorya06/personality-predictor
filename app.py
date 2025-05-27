@@ -10,6 +10,10 @@ from utils import (
     plot_feature_importance,
     analyze_email_metrics
 )
+from data_processing import get_feature_names
+from streamlit_lottie import st_lottie
+import requests
+import os
 
 st.set_page_config(
     page_title="Text Personality Analyzer",
@@ -38,6 +42,80 @@ This app analyzes text content to predict Big Five personality traits:
 - **Agreeableness**: Tendency to be compassionate and cooperative rather than suspicious and antagonistic towards others
 - **Neuroticism**: Tendency to experience unpleasant emotions easily, such as anger, anxiety, depression, and vulnerability
 """)
+
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700&display=swap');
+    body, html, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+        background: linear-gradient(135deg, #181c2f 0%, #3b82f6 100%);
+        color: #e6e6f0;
+    }
+    .app-title {
+        background: linear-gradient(90deg, #7f9cf5 0%, #5eead4 100%);
+        border-radius: 18px;
+        padding: 1.5rem 0;
+        margin-bottom: 1.5rem;
+        text-align: center;
+        color: #181c2f;
+        font-size: 2.8rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        box-shadow: 0 4px 24px rgba(94,234,212,0.15);
+    }
+    .desc-box {
+        background: rgba(24,28,47,0.7);
+        border-radius: 12px;
+        padding: 1.2rem 1.5rem;
+        margin-bottom: 2rem;
+        font-size: 1.2rem;
+        font-style: italic;
+        color: #e0e7ef;
+        text-align: center;
+    }
+    .footer {
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        text-align: center;
+        font-size: 0.95rem;
+        color: #a0aec0;
+        padding: 0.5rem 0;
+        background: rgba(24,28,47,0.85);
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- App Title with Icon ---
+st.markdown("""
+<div class="app-title">
+    <span style="font-size:2.5rem; vertical-align:middle;">🧠</span>
+    <span style="vertical-align:middle;">Personality Predictor Dashboard</span>
+</div>
+""", unsafe_allow_html=True)
+
+# --- Short Description ---
+st.markdown("""
+<div class="desc-box">
+    <em>
+    Analyze text and uncover personality traits using advanced NLP and psychological modeling.<br>
+    Upload your writing, get instant Big Five trait insights, and visualize your unique personality profile!
+    </em>
+</div>
+""", unsafe_allow_html=True)
+
+# --- Lottie Animation (optional, requires streamlit-lottie) ---
+def load_lottieurl(url: str):
+    r = requests.get(url)
+    if r.status_code != 200:
+        return None
+    return r.json()
+
+lottie_url = "https://assets2.lottiefiles.com/packages/lf20_2glqweqs.json"  # Example brain animation
+lottie_json = load_lottieurl(lottie_url)
+st_lottie(lottie_json, height=180, key="brain")
+
+# --- Navigation Tabs ---
+tabs = st.tabs(["🔍 Analyze Text", "📊 View Trait Scores", "📁 Upload File", "ℹ️ About App"])
 
 def analyze_single_text(text_input):
     """Analyze a single text and display results."""
@@ -96,11 +174,66 @@ def analyze_single_text(text_input):
             for trait, tab in zip(predictions.keys(), trait_tabs):
                 with tab:
                     importance_scores = st.session_state.predictor.get_feature_importance(trait)
-                    feature_names = [f"Feature_{i}" for i in range(len(importance_scores))]
+                    feature_names = get_feature_names()
                     importance_fig = plot_feature_importance(feature_names, importance_scores)
                     st.plotly_chart(importance_fig, use_container_width=True)
         except Exception as e:
             st.error(f"Error analyzing text: {str(e)}")
+
+with tabs[0]:
+    st.header("Analyze Text")
+    # Text input for single analysis
+    text_input = st.text_area(
+        "Enter text content:",
+        height=200,
+        placeholder="Paste your text content here..."
+    )
+    
+    # Analysis button for single text
+    if st.button("Analyze Text"):
+        if text_input.strip():
+            analyze_single_text(text_input)
+        else:
+            st.error("Please enter text content to analyze.")
+
+with tabs[1]:
+    st.header("View Trait Scores")
+    sample_dir = "sample_texts"
+    sample_files = [f for f in os.listdir(sample_dir) if f.endswith(".txt")]
+    selected_file = st.selectbox("Select a sample text file to analyze:", sample_files)
+    if selected_file:
+        with open(os.path.join(sample_dir, selected_file), "r", encoding="utf-8") as f:
+            text = f.read()
+        st.text_area("Sample Text", text, height=200)
+        if st.button("Analyze Selected Sample", key="analyze_sample"):
+            analyze_single_text(text)
+
+with tabs[2]:
+    st.header("Upload Text File")
+    txt_file = st.file_uploader("Upload a plain text file", type=["txt"], key="simple_txt_uploader")
+    if txt_file is not None:
+        text = txt_file.read().decode("utf-8")
+        st.text_area("File Content", text, height=300)
+        if st.button("Analyze This Text"):
+            analyze_single_text(text)
+
+with tabs[3]:
+    st.header("About App")
+    st.markdown("""
+    This dashboard uses machine learning and natural language processing to predict Big Five personality traits from text.
+    - Built by Team018 
+    """)
+
+# --- Footer ---
+st.markdown("""
+<div class="footer">
+    <a href="https://github.com/yourgithub" target="_blank" style="color:#7f9cf5; text-decoration:none;">
+        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" height="18" style="vertical-align:middle; margin-right:4px;"/>
+        GitHub
+    </a>
+    &nbsp;|&nbsp; Personality Predictor &copy; 2024
+</div>
+""", unsafe_allow_html=True)
 
 def analyze_multiple_texts(df):
     """Analyze multiple texts and display aggregate results."""
@@ -150,46 +283,6 @@ def analyze_multiple_texts(df):
         except Exception as e:
             st.error(f"Error analyzing texts: {str(e)}")
 
-# Input method selection
-input_method = st.radio(
-    "Choose input method:",
-    ["Single Text", "Multiple Texts (CSV)"]
-)
-
-if input_method == "Single Text":
-    # Text input for single analysis
-    text_input = st.text_area(
-        "Enter text content:",
-        height=200,
-        placeholder="Paste your text content here..."
-    )
-    
-    # Analysis button for single text
-    if st.button("Analyze Text"):
-        if text_input.strip():
-            analyze_single_text(text_input)
-        else:
-            st.error("Please enter text content to analyze.")
-
-else:
-    # File upload for multiple texts
-    uploaded_file = st.file_uploader("Upload CSV file with texts", type=['csv'])
-    if uploaded_file is not None:
-        try:
-            # Read CSV file
-            df = pd.read_csv(uploaded_file)
-            
-            # Check if required column exists
-            if 'text_content' not in df.columns:
-                st.error("CSV file must contain a 'text_content' column.")
-                st.stop()
-            
-            # Analyze multiple texts
-            analyze_multiple_texts(df)
-            
-        except Exception as e:
-            st.error(f"Error processing CSV file: {str(e)}")
-
 def create_trait_distribution_plot(predictions_df):
     """Create a distribution plot for all traits."""
     import plotly.figure_factory as ff
@@ -226,12 +319,4 @@ def create_correlation_heatmap(predictions_df):
         width=600,
         height=600
     )
-    return fig
-
-# Add footer
-st.markdown("---")
-st.markdown("""
-<div style='text-align: center'>
-    <p>Built with ❤️ using Machine Learning and NLP</p>
-</div>
-""", unsafe_allow_html=True) 
+    return fig 
